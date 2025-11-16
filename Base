@@ -1,31 +1,56 @@
 #include <Servo.h>
 
-Servo myservo;
-const int buttonPin = 2; -- New button location
+Servo servo1; // 360
+Servo servo2; // also 360
 
-int lastState = HIGH;
-int currentState;
-bool servoActive = false;
+const int buttonPin1 = 2;
+const int buttonPin2 = 3;
+
+int lastState1 = HIGH;
+int currentState1;
+bool servo1Active = false;
+
+int lastState2 = HIGH;
+int currentState2;
+bool servo2Active = false;
 
 void setup() {
-  myservo.attach(9);
-  pinMode(buttonPin, INPUT_PULLUP);
-  myservo.write(90); // Stop the servo initially
+  servo1.attach(9);
+  servo2.attach(10);
+
+  pinMode(buttonPin1, INPUT_PULLUP);
+  pinMode(buttonPin2, INPUT_PULLUP);
+
+  servo1.write(90); // Stop continuous rotation servo
+  servo2.write(90); 
 }
 
 void loop() {
-  currentState = digitalRead(buttonPin);
-
-  if (lastState == LOW && currentState == HIGH && !servoActive) {
-    servoActive = true;
-    myservo.write(100); // Spin forward
-    delay(3000);        // Spin for 3 seconds
-    myservo.write(90);  // Stop
+  // Button 1 logic
+  currentState1 = digitalRead(buttonPin1);
+  if (lastState1 == LOW && currentState1 == HIGH && !servo1Active) {
+    servo1Active = true;
+    servo1.write(100); // Spin forward
+    delay(3000); // 3 ssecond spin, adjust l8r
+    servo1.write(90);  // Stop
   }
-
-  if (currentState == HIGH) {
-    servoActive = false;
+  if (currentState1 == HIGH) {
+    servo1Active = false;
   }
+  lastState1 = currentState1;
 
-  lastState = currentState;
+  // Button 2 logic
+  currentState2 = digitalRead(buttonPin2);
+  if (lastState2 == LOW && currentState2 == HIGH && !servo2Active) {
+    servo2Active = true;
+    servo2.write(100); // Spin forward
+    delay(3000); 
+    servo2.write(90);  // Stop
+  }
+  if (currentState2 == HIGH) {
+    servo2Active = false;
+  }
+  lastState2 = currentState2;
 }
+
+// I've been adding comments with -- instead of //, my bad thats for lua
