@@ -1,25 +1,31 @@
-// constants won't change. They're used here to set pin numbers:
-const int BUTTON_PIN = 7; // the number of the pushbutton pin
+#include <Servo.h>
 
-// Variables will change:
-int lastState = HIGH; // the previous state from the input pin
-int currentState;    // the current reading from the input pin
+Servo myservo;
+const int buttonPin = 2; -- New button location
+
+int lastState = HIGH;
+int currentState;
+bool servoActive = false;
 
 void setup() {
-  // initialize serial communication at 9600 bits per second:
-  Serial.begin(9600);
-  // initialize the pushbutton pin as an pull-up input
-  // the pull-up input pin will be HIGH when the switch is open and LOW when the switch is closed.
-  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  myservo.attach(9);
+  pinMode(buttonPin, INPUT_PULLUP);
+  myservo.write(90); // Stop the servo initially
 }
 
 void loop() {
-  // read the state of the switch/button:
-  currentState = digitalRead(BUTTON_PIN);
+  currentState = digitalRead(buttonPin);
 
-  if(lastState == LOW && currentState == HIGH)
-    Serial.println("Button Pressed");
+  if (lastState == LOW && currentState == HIGH && !servoActive) {
+    servoActive = true;
+    myservo.write(100); // Spin forward
+    delay(3000);        // Spin for 3 seconds
+    myservo.write(90);  // Stop
+  }
 
-  // save the last state
+  if (currentState == HIGH) {
+    servoActive = false;
+  }
+
   lastState = currentState;
 }
