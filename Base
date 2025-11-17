@@ -54,3 +54,29 @@ void loop() {
 }
 
 // I've been adding comments with -- instead of //, my bad thats for lua
+
+
+//SEPERATE CODE; reads4copper inpute
+
+void setup() {
+  // Initialize serial communication
+  Serial.begin(9600);
+
+  // Set pin 4 as input
+  pinMode(4, INPUT);
+}
+
+void loop() {
+  // Read the state of pin 4
+  int pinState = digitalRead(4);
+
+  // Check if pin 4 is HIGH or LOW
+  if (pinState == HIGH) {
+    Serial.println("Power detected on pin 4");
+  } else {
+    Serial.println("No power on pin 4");
+  }
+
+  // Wait a bit before checking again
+  delay(500);
+}
