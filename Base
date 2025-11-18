@@ -1,82 +1,80 @@
 #include <Servo.h>
 
-Servo servo1; // 360
-Servo servo2; // also 360
+const int inputPin = 4;       // Pin to detect power for LED
+const int ledPin = 8;         // LED output pin
 
-const int buttonPin1 = 2;
-const int buttonPin2 = 3;
+const int buttonPin1 = 5;     // Button input for first servo
+const int servoPin1 = 12;     // First servo control pin
 
-int lastState1 = HIGH;
-int currentState1;
-bool servo1Active = false;
+const int buttonPin2 = 13;    // Button input for second servo
+const int servoPin2 = 10;     // Second servo control pin
 
-int lastState2 = HIGH;
-int currentState2;
-bool servo2Active = false;
+const int buttonPin3 = 6;     // New button input for third servo
+const int servoPin3 = 7;      // New servo control pin
+
+Servo myServo1;
+Servo myServo2;
+Servo myServo3;
 
 void setup() {
-  servo1.attach(9);
-  servo2.attach(10);
+  pinMode(inputPin, INPUT);       // Set pin 4 as input
+  pinMode(ledPin, OUTPUT);        // Set pin 8 as output
 
-  pinMode(buttonPin1, INPUT_PULLUP);
-  pinMode(buttonPin2, INPUT_PULLUP);
+  pinMode(buttonPin1, INPUT);     // Set pin 5 as input
+  pinMode(buttonPin2, INPUT);     // Set pin 13 as input
+  pinMode(buttonPin3, INPUT);     // Set pin 6 as input
 
-  servo1.write(90); // Stop continuous rotation servo
-  servo2.write(90); 
+  myServo1.attach(servoPin1);     // Attach first servo to pin 12
+  myServo2.attach(servoPin2);     // Attach second servo to pin 10
+  myServo3.attach(servoPin3);     // Attach third servo to pin 7
+
+  myServo1.write(90);             // Stop first servo initially
+  myServo2.write(90);             // Stop second servo initially
+  myServo3.write(90);             // Stop third servo initially
+
+  Serial.begin(9600);             // Start serial monitor
 }
 
 void loop() {
-  // Button 1 logic
-  currentState1 = digitalRead(buttonPin1);
-  if (lastState1 == LOW && currentState1 == HIGH && !servo1Active) {
-    servo1Active = true;
-    servo1.write(100); // Spin forward
-    delay(3000); // 3 ssecond spin, adjust l8r
-    servo1.write(90);  // Stop
-  }
-  if (currentState1 == HIGH) {
-    servo1Active = false;
-  }
-  lastState1 = currentState1;
-
-  // Button 2 logic
-  currentState2 = digitalRead(buttonPin2);
-  if (lastState2 == LOW && currentState2 == HIGH && !servo2Active) {
-    servo2Active = true;
-    servo2.write(100); // Spin forward
-    delay(3000); 
-    servo2.write(90);  // Stop
-  }
-  if (currentState2 == HIGH) {
-    servo2Active = false;
-  }
-  lastState2 = currentState2;
-}
-
-// I've been adding comments with -- instead of //, my bad thats for lua
-
-
-//SEPERATE CODE; reads4copper inpute
-
-void setup() {
-  // Initialize serial communication
-  Serial.begin(9600);
-
-  // Set pin 4 as input
-  pinMode(4, INPUT);
-}
-
-void loop() {
-  // Read the state of pin 4
-  int pinState = digitalRead(4);
-
-  // Check if pin 4 is HIGH or LOW
-  if (pinState == HIGH) {
-    Serial.println("Power detected on pin 4");
+  // LED logic
+  int powerState = digitalRead(inputPin);
+  if (powerState == HIGH) {
+    digitalWrite(ledPin, HIGH);
+    Serial.println("Power detected: LED ON");
   } else {
-    Serial.println("No power on pin 4");
+    digitalWrite(ledPin, LOW);
+    Serial.println("No power: LED OFF");
   }
 
-  // Wait a bit before checking again
-  delay(500);
+  // First servo logic
+  int buttonState1 = digitalRead(buttonPin1);
+  if (buttonState1 == HIGH) {
+    myServo1.write(100);  // Spin first servo
+    Serial.println("Button 1 pressed: Servo 1 spinning");
+  } else {
+    myServo1.write(90);   // Stop first servo
+    Serial.println("Button 1 released: Servo 1 stopped");
+  }
+
+  // Second servo logic
+  int buttonState2 = digitalRead(buttonPin2);
+  if (buttonState2 == HIGH) {
+    myServo2.write(100);  // Spin second servo
+    Serial.println("Button 2 pressed: Servo 2 spinning");
+  } else {
+    myServo2.write(90);   // Stop second servo
+    Serial.println("Button 2 released: Servo 2 stopped");
+  }
+
+  // Third servo logic
+  int buttonState3 = digitalRead(buttonPin3);
+  if (buttonState3 == HIGH) {
+    myServo3.write(100);  // Spin third servo
+    Serial.println("Button 3 pressed: Servo 3 spinning");
+  } else {
+    myServo3.write(90);   // Stop third servo
+    Serial.println("Button 3 released: Servo 3 stopped");
+  }
+
+  delay(500);  // Check every half second
 }
