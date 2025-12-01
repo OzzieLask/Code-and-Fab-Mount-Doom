@@ -1,80 +1,88 @@
+// ai used
 #include <Servo.h>
 
-const int inputPin = 4;       // Pin to detect power for LED
-const int ledPin = 8;         // LED output pin
+// --- Pin assignments ---
+const int ledPin         = 9;   // LED output
+const int ledButton      = 2;   // LED button
 
-const int buttonPin1 = 5;     // Button input for first servo
-const int servoPin1 = 12;     // First servo control pin
+const int servoPinPos    = 6;   // positional servo signal
+const int servoButtonPos = 3;   // button for positional servo
 
-const int buttonPin2 = 13;    // Button input for second servo
-const int servoPin2 = 10;     // Second servo control pin
+const int servoPin360    = 4;   // continuous rotation servo signal
+const int servoButton360 = 10;  // button for 360° servo
 
-const int buttonPin3 = 6;     // New button input for third servo
-const int servoPin3 = 7;      // New servo control pin
+// --- Servo objects ---
+Servo myServoPos;
+Servo myServo360;
 
-Servo myServo1;
-Servo myServo2;
-Servo myServo3;
+// --- State tracking ---
+bool lastLedButton = HIGH;
+bool ledState = false;
+
+bool lastServoButtonPos = HIGH;
+bool servoToggledPos = false;
+int currentAngle = 0;       // positional servo starts at 0°
+
+const int STOP_VALUE    = 90;   // neutral stop for 360° servo (adjust 88–92 if needed)
+const int FORWARD_VALUE = 60;   // spin forward (lower = faster)
+const int REVERSE_VALUE = 120;  // spin backward (higher = faster)
 
 void setup() {
-  pinMode(inputPin, INPUT);       // Set pin 4 as input
-  pinMode(ledPin, OUTPUT);        // Set pin 8 as output
+  Serial.begin(9600);
 
-  pinMode(buttonPin1, INPUT);     // Set pin 5 as input
-  pinMode(buttonPin2, INPUT);     // Set pin 13 as input
-  pinMode(buttonPin3, INPUT);     // Set pin 6 as input
+  // Inputs
+  pinMode(ledButton, INPUT_PULLUP);
+  pinMode(servoButtonPos, INPUT_PULLUP);
+  pinMode(servoButton360, INPUT_PULLUP);
 
-  myServo1.attach(servoPin1);     // Attach first servo to pin 12
-  myServo2.attach(servoPin2);     // Attach second servo to pin 10
-  myServo3.attach(servoPin3);     // Attach third servo to pin 7
+  // Outputs
+  pinMode(ledPin, OUTPUT);
 
-  myServo1.write(90);             // Stop first servo initially
-  myServo2.write(90);             // Stop second servo initially
-  myServo3.write(90);             // Stop third servo initially
+  // Attach servos
+  myServoPos.attach(servoPinPos);
+  myServoPos.write(currentAngle); // start at 0°
 
-  Serial.begin(9600);             // Start serial monitor
+  myServo360.attach(servoPin360);
+  myServo360.write(STOP_VALUE);   // start stopped
 }
 
 void loop() {
-  // LED logic
-  int powerState = digitalRead(inputPin);
-  if (powerState == HIGH) {
-    digitalWrite(ledPin, HIGH);
-    Serial.println("Power detected: LED ON");
+  // --- LED toggle ---
+  int ledBtn = digitalRead(ledButton);
+  if (lastLedButton == HIGH && ledBtn == LOW) {
+    ledState = !ledState;
+    digitalWrite(ledPin, ledState ? HIGH : LOW);
+    Serial.print("LED state: "); Serial.println(ledState ? "ON" : "OFF");
+  }
+  lastLedButton = ledBtn;
+
+  // --- Positional servo toggle ---
+  int servoBtnPos = digitalRead(servoButtonPos);
+  if (lastServoButtonPos == HIGH && servoBtnPos == LOW) {
+    servoToggledPos = !servoToggledPos;
+    if (servoToggledPos) {
+      currentAngle = 90;
+      Serial.print("Positional servo moved to "); Serial.println(currentAngle);
+      myServoPos.write(currentAngle);
+    } else {
+      currentAngle = 0;
+      Serial.print("Positional servo returned to "); Serial.println(currentAngle);
+      myServoPos.write(currentAngle);
+    }
+  }
+  lastServoButtonPos = servoBtnPos;
+
+  // --- 360° servo free‑spin ---
+  int servoBtn360 = digitalRead(servoButton360);
+  if (servoBtn360 == LOW) {
+    // Button held: spin continuously
+    myServo360.write(FORWARD_VALUE);   // use REVERSE_VALUE if you want opposite direction
+    Serial.println("360° servo spinning...");
   } else {
-    digitalWrite(ledPin, LOW);
-    Serial.println("No power: LED OFF");
+    // Button released: stop immediately
+    myServo360.write(STOP_VALUE);
+    Serial.println("360° servo stopped.");
   }
 
-  // First servo logic
-  int buttonState1 = digitalRead(buttonPin1);
-  if (buttonState1 == HIGH) {
-    myServo1.write(100);  // Spin first servo
-    Serial.println("Button 1 pressed: Servo 1 spinning");
-  } else {
-    myServo1.write(90);   // Stop first servo
-    Serial.println("Button 1 released: Servo 1 stopped");
-  }
-
-  // Second servo logic
-  int buttonState2 = digitalRead(buttonPin2);
-  if (buttonState2 == HIGH) {
-    myServo2.write(100);  // Spin second servo
-    Serial.println("Button 2 pressed: Servo 2 spinning");
-  } else {
-    myServo2.write(90);   // Stop second servo
-    Serial.println("Button 2 released: Servo 2 stopped");
-  }
-
-  // Third servo logic
-  int buttonState3 = digitalRead(buttonPin3);
-  if (buttonState3 == HIGH) {
-    myServo3.write(100);  // Spin third servo
-    Serial.println("Button 3 pressed: Servo 3 spinning");
-  } else {
-    myServo3.write(90);   // Stop third servo
-    Serial.println("Button 3 released: Servo 3 stopped");
-  }
-
-  delay(500);  // Check every half second
+  delay(50); // debounce / smooth loop
 }
