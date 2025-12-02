@@ -1,4 +1,3 @@
-// ai used
 #include <Servo.h>
 
 // --- Pin assignments ---
@@ -11,9 +10,19 @@ const int servoButtonPos = 3;   // button for positional servo
 const int servoPin360    = 4;   // continuous rotation servo signal
 const int servoButton360 = 10;  // button for 360° servo
 
+const int servoPinUltra  = 5;   // continuous rotation servo acting like 180°
+const int trigPin        = 7;   // ultrasonic trigger
+const int echoPin        = 8;   // ultrasonic echo
+
+// --- Final 360° servo ---
+const int servoPinFinal    = 11;  // continuous rotation servo
+const int servoButtonFinal = 12;  // button to trigger it
+
 // --- Servo objects ---
 Servo myServoPos;
 Servo myServo360;
+Servo myServoUltra;
+Servo myServoFinal;
 
 // --- State tracking ---
 bool lastLedButton = HIGH;
@@ -23,9 +32,23 @@ bool lastServoButtonPos = HIGH;
 bool servoToggledPos = false;
 int currentAngle = 0;       // positional servo starts at 0°
 
-const int STOP_VALUE    = 90;   // neutral stop for 360° servo (adjust 88–92 if needed)
-const int FORWARD_VALUE = 60;   // spin forward (lower = faster)
-const int REVERSE_VALUE = 120;  // spin backward (higher = faster)
+int STOP_VALUE    = 90;     // neutral stop for continuous servo (adjustable!)
+const int FORWARD_VALUE = 60;   // spin forward (fast)
+const int REVERSE_VALUE = 120;  // spin backward (fast)
+const int SPIN_TIME     = 500; // ms to approximate ~90° rotation
+const int DIST_THRESHOLD = 20;  // cm distance threshold
+
+// --- Speed control for final servo ---
+int finalServoSpeed = 95;        // closer to 90 = slower spin
+const int FINAL_SPIN_TIME = 3000; // spin duration in ms
+
+// --- Ultrasonic variables ---
+long duration;
+int distance;
+bool ultraActive = false; // track state
+
+// --- Timing control ---
+unsigned long startTime;   // record when program starts
 
 void setup() {
   Serial.begin(9600);
@@ -34,16 +57,38 @@ void setup() {
   pinMode(ledButton, INPUT_PULLUP);
   pinMode(servoButtonPos, INPUT_PULLUP);
   pinMode(servoButton360, INPUT_PULLUP);
+  pinMode(servoButtonFinal, INPUT_PULLUP);
 
   // Outputs
   pinMode(ledPin, OUTPUT);
+
+  // Ultrasonic pins
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
 
   // Attach servos
   myServoPos.attach(servoPinPos);
   myServoPos.write(currentAngle); // start at 0°
 
   myServo360.attach(servoPin360);
-  myServo360.write(STOP_VALUE);   // start stopped
+  myServo360.write(STOP_VALUE);   // send stop immediately
+  delay(50);
+  myServo360.write(STOP_VALUE);   // reinforce stop
+
+  myServoUltra.attach(servoPinUltra);
+  myServoUltra.write(STOP_VALUE);
+  delay(50);
+  myServoUltra.write(STOP_VALUE);
+
+  myServoFinal.attach(servoPinFinal);
+  myServoFinal.write(STOP_VALUE);
+  delay(50);
+  myServoFinal.write(STOP_VALUE);
+
+  // record start time
+  startTime = millis();
+
+  Serial.println("Setup complete. Type a number in Serial to adjust STOP_VALUE.");
 }
 
 void loop() {
@@ -62,12 +107,12 @@ void loop() {
     servoToggledPos = !servoToggledPos;
     if (servoToggledPos) {
       currentAngle = 90;
-      Serial.print("Positional servo moved to "); Serial.println(currentAngle);
       myServoPos.write(currentAngle);
+      Serial.println("Positional servo moved to 90°");
     } else {
       currentAngle = 0;
-      Serial.print("Positional servo returned to "); Serial.println(currentAngle);
       myServoPos.write(currentAngle);
+      Serial.println("Positional servo returned to 0°");
     }
   }
   lastServoButtonPos = servoBtnPos;
@@ -75,14 +120,65 @@ void loop() {
   // --- 360° servo free‑spin ---
   int servoBtn360 = digitalRead(servoButton360);
   if (servoBtn360 == LOW) {
-    // Button held: spin continuously
-    myServo360.write(FORWARD_VALUE);   // use REVERSE_VALUE if you want opposite direction
-    Serial.println("360° servo spinning...");
+    myServo360.write(FORWARD_VALUE);
   } else {
-    // Button released: stop immediately
     myServo360.write(STOP_VALUE);
-    Serial.println("360° servo stopped.");
   }
 
-  delay(50); // debounce / smooth loop
+  // --- Ultrasonic measurement ---
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  duration = pulseIn(echoPin, HIGH, 30000); // 30ms timeout
+  distance = duration * 0.034 / 2; // cm
+
+  Serial.print("Distance: ");
+  Serial.println(distance);
+
+  // --- Ultrasonic‑triggered 360° servo acting like 180° (REVERSED) ---
+  if (millis() - startTime > 3000) {   // wait 3 seconds before reacting
+    if (!ultraActive && distance > 0 && distance < DIST_THRESHOLD) {
+      ultraActive = true;
+      myServoUltra.write(REVERSE_VALUE);
+      delay(SPIN_TIME);
+      myServoUltra.write(STOP_VALUE);
+      Serial.println("Ultrasonic servo spun backward ~90°");
+    }
+    else if (ultraActive && (distance <= 13 || distance >= DIST_THRESHOLD)) {
+      ultraActive = false;
+      myServoUltra.write(FORWARD_VALUE);
+      delay(SPIN_TIME);
+      myServoUltra.write(STOP_VALUE);
+      Serial.println("Ultrasonic servo spun forward ~90°");
+    }
+  }
+
+  // --- Final 360° servo: slow spin for set duration ---
+  int servoBtnFinal = digitalRead(servoButtonFinal);
+  if (servoBtnFinal == LOW) {
+    Serial.print("Final servo spinning slowly at speed value ");
+    Serial.println(finalServoSpeed);
+    myServoFinal.write(finalServoSpeed);   // slow spin
+    delay(FINAL_SPIN_TIME);                // spin for set duration
+    myServoFinal.write(STOP_VALUE);        // stop
+    Serial.println("Final servo stopped.");
+  }
+
+  // --- Serial calibration helper ---
+  if (Serial.available()) {
+    int val = Serial.parseInt();
+    if (val > 0) {
+      STOP_VALUE = val;
+      myServo360.write(STOP_VALUE);
+      myServoUltra.write(STOP_VALUE);
+      myServoFinal.write(STOP_VALUE);
+      Serial.print("STOP_VALUE updated to: ");
+      Serial.println(STOP_VALUE);
+    }
+  }
+
+  delay(50); // smooth loop
 }
